@@ -1,0 +1,47 @@
+{
+  "name": "sentry-lazy",
+  "version": "1.0.0",
+  "description": "A tool for lazy load Sentry",
+  "main": "index.js",
+  "module": "dist/sentry-lazy.esm-bundler.js",
+  "types": "dist/index.d.ts",
+  "unpkg": "dist/sentry-lazy.global.js",
+  "jsdelivr": "dist/sentry-lazy.global.js",
+  "files": [
+    "index.js",
+    "index.mjs",
+    "global.d.ts",
+    "dist"
+  ],
+  "scripts": {
+    "build": "NODE_ENV=production rollup -c && tsc --emitDeclarationOnly",
+    "dev": "NODE_ENV=develop rollup -c"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kricsleo/sentry-lazy.git"
+  },
+  "keywords": [
+    "Sentry",
+    "lazy"
+  ],
+  "author": "kricsleo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kricsleo/sentry-lazy/issues"
+  },
+  "homepage": "https://github.com/kricsleo/sentry-lazy#readme",
+  "dependencies": {
+    "@sentry/tracing": "^7.3.0",
+    "@sentry/vue": "^7.3.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^22.0.1",
+    "@sentry/browser": "^7.3.0",
+    "rollup": "^2.75.7",
+    "rollup-plugin-delete": "^2.0.0",
+    "rollup-plugin-typescript2": "^0.32.1",
+    "rollup-plugin-uglify": "^6.0.4",
+    "typescript": "^4.7.4"
+  }
+}
