@@ -9,6 +9,7 @@ type SentryLazy = {
 
 const w = window
 
+let sequence = -1
 const sentryQueue: Array<(sentry: Sentry) => void> = []
 const errorQueue: Array<Parameters<OnErrorEventHandlerNonNull>> = []
 const rejectionQueue: Array<PromiseRejectionEvent> = []
@@ -38,7 +39,7 @@ const sentryLazy: SentryLazy = proxyedSentryFns.reduce((all, cur) => {
 export function init(Sentry: Sentry, options: InitOptions) {
   Sentry.init(options)
   restoreWindowFns()
-  replayFns()
+  replayFns(Sentry)
   w.sentryLazy = Sentry
 }
 
@@ -50,9 +51,9 @@ function proxyWindowFns() {
   w._re = w.onerror
   w._ru = w.onunhandledrejection
   w._pe = w.onerror = (...args) =>
-    errorQueue.push(args) && w._re?.(...args);
+    (errorQueue[sequence++] = args) && w._re?.(...args);
   w._pu = w.onunhandledrejection = (e: PromiseRejectionEvent) =>
-    rejectionQueue.push(e) && w._ru?.(e)
+    (rejectionQueue[sequence++] = e) && w._ru?.(e)
 }
 
 function restoreWindowFns() {
@@ -61,14 +62,15 @@ function restoreWindowFns() {
     && (w.onunhandledrejection = w._ru)
 }
 
-function replayFns() {
+function replayFns(Sentry: Sentry) {
   errorQueue.forEach(args => w.onerror?.(...args))
   rejectionQueue.forEach(e => w.onunhandledrejection?.(e))
+  sentryQueue.forEach(call => call(Sentry))
   sentryQueue.length = errorQueue.length = rejectionQueue.length = 0
 }
 
 function createSentryProxy(name: string) {
-  return (...args) => sentryQueue.push(t => t[name](...args))
+  return (...args) => sentryQueue[sequence++] = t => t[name](...args)
 }
 
 proxyWindowFns()
