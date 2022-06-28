@@ -1,5 +1,7 @@
 type Sentry = typeof import('@sentry/browser')
-type InitOptions = Parameters<Sentry['init']>[0]
+type InitOptions = Parameters<Sentry['init']>[0] & {
+  [key: string]: any
+}
 
 type SentryLazy = {
   init: (Sentry: Sentry, options: InitOptions) => void
@@ -7,7 +9,14 @@ type SentryLazy = {
   [k in typeof proxyedSentryFns[number]]: (...args: any) => unknown
 }
 
+// short name to save bytes
 const w = window
+const error = 'onerror'
+const rawError = '_re'
+const proxyedError = '_pe'
+const rejection = 'onunhandledrejection'
+const rawRejection = '_rr'
+const proxyedRejection = '_pr'
 
 let sequence = 0
 const sentryQueue: Array<(sentry: Sentry) => void> = []
@@ -44,35 +53,38 @@ export function init(Sentry: Sentry, options: InitOptions) {
 }
 
 function proxyWindowFns() {
-  // already proxyed
-  if(w._pe && w._pe === w.onerror) {
-    return
+  if(!w[proxyedError] || w[proxyedError] !== w[error]) {
+    w[rawError] = w[error]
+    w[proxyedError] = w[error] = (...args) =>
+      (errorQueue[sequence++] = args) && w[rawError] && w[rawError](...args);
   }
-  w._re = w.onerror
-  w._ru = w.onunhandledrejection
-  w._pe = w.onerror = (...args) =>
-    (errorQueue[sequence++] = args) && w._re?.(...args);
-  w._pu = w.onunhandledrejection = (e: PromiseRejectionEvent) =>
-    (rejectionQueue[sequence++] = e) && w._ru?.(e)
+  if(!w[proxyedRejection] || w[proxyedRejection] !== w[rejection]) {
+    w[rawRejection] = w[rejection]
+    w[proxyedRejection] = w[rejection] = (e: PromiseRejectionEvent) =>
+      (rejectionQueue[sequence++] = e) && w[rawRejection] && w[rawRejection](e)
+  }
 }
 
 function restoreWindowFns() {
-  w._pe === w.onerror && (w.onerror = w._re)
-  w._pu === w.onunhandledrejection
-    && (w.onunhandledrejection = w._ru)
+  w[proxyedError] === w[error] && (w[error] = w[rawError])
+  w[proxyedRejection] === w[rejection] && (w[rejection] = w[rawRejection]);
+  [rawError, proxyedError, rawRejection, proxyedRejection].forEach(name => delete w[name])
 }
 
 function replayFns(Sentry: Sentry) {
-  for(let i = 0, length = Math.max(errorQueue.length, rejectionQueue.length, sentryQueue.length); i < length; i++) {
-    if(errorQueue[i]) {
-      w.onerror?.(...errorQueue[i])
-    } else if(rejectionQueue[i]) {
-      w.onunhandledrejection?.(rejectionQueue[i])
-    } else if(sentryQueue[i]) {
-      sentryQueue[i](Sentry)
-    }
+  for(let i = 0; i < sequence; i++) {
+    // ignore error when replaying, make sure all error are replayed
+    try {
+      if(errorQueue[i]) {
+        w[error] && w[error](...errorQueue[i])
+      } else if(rejectionQueue[i]) {
+        w[rejection] && w[rejection](rejectionQueue[i])
+      } else if(sentryQueue[i]) {
+        sentryQueue[i](Sentry)
+      }
+    } catch {}
   }
-  sentryQueue.length = errorQueue.length = rejectionQueue.length = 0
+  sequence = sentryQueue.length = errorQueue.length = rejectionQueue.length = 0
 }
 
 function createSentryProxy(name: string) {
