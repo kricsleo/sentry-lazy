@@ -63,9 +63,15 @@ function restoreWindowFns() {
 }
 
 function replayFns(Sentry: Sentry) {
-  errorQueue.forEach(args => w.onerror?.(...args))
-  rejectionQueue.forEach(e => w.onunhandledrejection?.(e))
-  sentryQueue.forEach(call => call(Sentry))
+  for(let i = 0, length = Math.max(errorQueue.length, rejectionQueue.length, sentryQueue.length); i < length; i++) {
+    if(errorQueue[i]) {
+      w.onerror?.(...errorQueue[i])
+    } else if(rejectionQueue[i]) {
+      w.onunhandledrejection?.(rejectionQueue[i])
+    } else if(sentryQueue[i]) {
+      sentryQueue[i](Sentry)
+    }
+  }
   sentryQueue.length = errorQueue.length = rejectionQueue.length = 0
 }
 
