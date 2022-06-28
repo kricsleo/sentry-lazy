@@ -30,19 +30,16 @@ const proxyedSentryFns = [
   'withScope',
 ] as const
 
-let sentryLazy: SentryLazy = proxyedSentryFns.reduce((all, cur) => {
+const sentryLazy: SentryLazy = proxyedSentryFns.reduce((all, cur) => {
   all[cur] = createSentryProxy(cur)
   return all
 }, { init } as SentryLazy)
 
-function init(Sentry: Sentry, options: InitOptions) {
+export function init(Sentry: Sentry, options: InitOptions) {
   Sentry.init(options)
   restoreWindowFns()
   replayFns()
-  sentryLazy = {
-    ...Sentry,
-    init
-  }
+  w.sentryLazy = Sentry
 }
 
 function proxyWindowFns() {
@@ -76,4 +73,4 @@ function createSentryProxy(name: string) {
 
 proxyWindowFns()
 
-export default sentryLazy
+w.sentryLazy = sentryLazy

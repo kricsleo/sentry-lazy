@@ -3,5 +3,6 @@ interface Window {
   _pe: OnErrorEventHandlerNonNull
   _ru: typeof window.onunhandledrejection
   _pu: typeof window.onunhandledrejection
-  sentryLazy: typeof import('./src/index')['default']
+  // @ts-ignore
+  sentryLazy: typeof import('./dist/index')['default']
 }
