@@ -14,7 +14,7 @@ It's better to use this tool as a script at the begining of your page, so that a
 
 ```html
 <!-- put this line as the first script in your page -->
-<script src="https://cdn.jsdelivr.net/npm/sentry-lazy"></script>
+<script src="https://cdn.jsdelivr.net/npm/sentry-lazy/dist/sentry-lazy.global.js"></script>
 ```
 
 It will expose a global variable named `sentryLazy`, then **your shall load Sentry yourself**, when Sentry is fullyed loaded, call `window.sentryLazy.init(Sentry, initOptions)` to init your Sentry, that's all, it will replay all errors happened before.
@@ -38,18 +38,14 @@ Which functions are avaliable on `sentryLazy`? See [proxyedSentryFns](./src/inde
 1. Install package
 
 ```bash
-# npm i sentry-lazy
-yarn add sentry-lazy
+# npm i -D sentry-lazy
+yarn add --dev sentry-lazy
 ```
 
-2. Add this config in your `tsconfig.json`
+2. Add this config in your `global.d.ts`(or other declaration file)
 
-```json
-{
-  "compilerOptions": {
-    "types": ["sentry-lazy/global"]
-  }
-}
+```typescript
+/// <reference types="sentry-lazy/global" />
 ```
 
 ## Attentions
