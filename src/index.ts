@@ -9,7 +9,7 @@ type SentryLazy = {
 
 const w = window
 
-let sequence = -1
+let sequence = 0
 const sentryQueue: Array<(sentry: Sentry) => void> = []
 const errorQueue: Array<Parameters<OnErrorEventHandlerNonNull>> = []
 const rejectionQueue: Array<PromiseRejectionEvent> = []
