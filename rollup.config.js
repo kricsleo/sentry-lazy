@@ -10,7 +10,7 @@ export default {
     {
       file: `dist/${pkg.name}.global.js`,
       format: 'iife',
-      name: 'SentryLazy'
+      name: 'sentryLazy'
     },
     {
       file: `dist/${pkg.name}.esm-bundler.js`,
