@@ -1,12 +1,12 @@
-type Sentry = typeof import('@sentry/browser')
-type InitOptions = Parameters<Sentry['init']>[0] & {
-  [key: string]: any
-}
+import type * as SentryBrowser from '@sentry/browser'
+import type { BrowserOptions } from '@sentry/browser'
 
-type SentryLazy = {
-  init: (Sentry: Sentry, options: InitOptions) => void
-} & {
-  [k in typeof proxyedSentryFns[number]]: (...args: any) => unknown
+type Sentry = typeof SentryBrowser
+
+type LazyFns = typeof proxyedSentryFns[number]
+
+export type SentryLazy = Pick<Sentry, LazyFns> & Partial<Omit<Sentry, LazyFns | 'init'>> & {
+  init: (Sentry: Sentry, options: BrowserOptions) => void
 }
 
 interface QueueItem {
@@ -18,8 +18,9 @@ interface QueueItem {
   a: IArguments
 }
 
-// short name to save bytes
+// use variables and short names to save bytes after compiled
 const w = window
+const namespace = 'sentryLazy'
 const error = 'onerror'
 const rawError = '_re'
 const proxyedError = '_pe'
@@ -33,6 +34,7 @@ const handlerQueue = [
   [rejection, rawRejection, proxyedRejection],
 ] as const
 
+/** proxy these functions on Sentry */
 const proxyedSentryFns = [
   'addBreadcrumb',
   'captureException',
@@ -44,7 +46,6 @@ const proxyedSentryFns = [
   'setExtra',
   'setTag',
   'setUser',
-  'showReportDialog'
 ] as const
 
 const sentryLazy: SentryLazy = proxyedSentryFns.reduce(function (all, cur) {
@@ -52,19 +53,21 @@ const sentryLazy: SentryLazy = proxyedSentryFns.reduce(function (all, cur) {
   return all
 }, { init } as SentryLazy)
 
-export function init(Sentry: Sentry, options: InitOptions) {
+function init(Sentry: Sentry, options: BrowserOptions) {
   Sentry.init(options)
   restoreWindowFns()
   replayFns(Sentry)
-  w.sentryLazy = Sentry
+  w[namespace] = Sentry
 }
 
 function proxyWindowFns() {
   handlerQueue.forEach(function ([handler, rawHandler, proxyedHandler]) {
+    // avoid dulplicate proxy
     if(!w[proxyedHandler] || w[proxyedHandler] !== w[handler]) {
       w[rawHandler] = w[handler]
       w[proxyedHandler] = w[handler] = function () {
-        queue.push({w: handler, a: arguments})
+        // if no proxy handler, don't push queue
+        w[proxyedHandler] && queue.push({w: handler, a: arguments})
         w[rawHandler] && w[rawHandler].apply(w, arguments);
       }
     }
@@ -73,8 +76,14 @@ function proxyWindowFns() {
 
 function restoreWindowFns() {
   handlerQueue.forEach(function ([handler, rawHandler, proxyedHandler]) {
-    w[proxyedHandler] === w[handler] && (w[handler] = w[rawHandler])
-    delete w[rawHandler]
+    // only restore handler if nobody else changed it,
+    // if someone else also proxyed the handler, then don't restore it to make sure
+    // we don't break things
+    if(w[proxyedHandler] === w[handler]) {
+      w[handler] = w[rawHandler]
+      delete w[rawHandler]
+    }
+    // delete proxy handler as a flag of restore
     delete w[proxyedHandler]
   });
 }
@@ -91,11 +100,11 @@ function replayFns(Sentry: Sentry) {
 }
 
 function createSentryProxy(fnName: string) {
-  return function () {
+  return function (): any {
     queue.push({s: fnName, a: arguments})
   }
 }
 
 proxyWindowFns()
 
-w.sentryLazy = sentryLazy
+w[namespace] = sentryLazy

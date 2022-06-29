@@ -11,16 +11,16 @@ export default {
       file: `dist/${pkg.name}.global.js`,
       format: 'iife',
     },
-    {
-      file: `dist/${pkg.name}.esm-bundler.js`,
-      format: `es`,
-      exports: 'auto'
-    },
-    {
-      file: `dist/${pkg.name}.cjs.js`,
-      format: `cjs`,
-      exports: 'auto'
-    }
+    // {
+    //   file: `dist/${pkg.name}.esm-bundler.js`,
+    //   format: `es`,
+    //   exports: 'auto'
+    // },
+    // {
+    //   file: `dist/${pkg.name}.cjs.js`,
+    //   format: `cjs`,
+    //   exports: 'auto'
+    // }
   ],
   plugins: [
     del({ targets: 'dist/*' }),
