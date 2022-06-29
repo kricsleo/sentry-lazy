@@ -9,6 +9,15 @@ type SentryLazy = {
   [k in typeof proxyedSentryFns[number]]: (...args: any) => unknown
 }
 
+interface QueueItem {
+  /** handler name in window */
+  w?: string
+  /** handler name in Sentry */
+  s?: string
+  /** arguments */
+  a: IArguments
+}
+
 // short name to save bytes
 const w = window
 const error = 'onerror'
@@ -18,10 +27,11 @@ const rejection = 'onunhandledrejection'
 const rawRejection = '_rr'
 const proxyedRejection = '_pr'
 
-let sequence = 0
-const sentryQueue: Array<(sentry: Sentry) => void> = []
-const errorQueue: Array<Parameters<OnErrorEventHandlerNonNull>> = []
-const rejectionQueue: Array<PromiseRejectionEvent> = []
+const queue: QueueItem[] = []
+const handlerQueue = [
+  [error, rawError, proxyedError],
+  [rejection, rawRejection, proxyedRejection],
+] as const
 
 const proxyedSentryFns = [
   'addBreadcrumb',
@@ -29,18 +39,15 @@ const proxyedSentryFns = [
   'captureEvent',
   'captureMessage',
   'configureScope',
-  'createTransport',
-  'startTransaction',
+  'withScope',
   'setContext',
   'setExtra',
-  'setExtras',
   'setTag',
-  'setTags',
   'setUser',
-  'withScope',
+  'showReportDialog'
 ] as const
 
-const sentryLazy: SentryLazy = proxyedSentryFns.reduce((all, cur) => {
+const sentryLazy: SentryLazy = proxyedSentryFns.reduce(function (all, cur) {
   all[cur] = createSentryProxy(cur)
   return all
 }, { init } as SentryLazy)
@@ -53,42 +60,40 @@ export function init(Sentry: Sentry, options: InitOptions) {
 }
 
 function proxyWindowFns() {
-  if(!w[proxyedError] || w[proxyedError] !== w[error]) {
-    w[rawError] = w[error]
-    w[proxyedError] = w[error] = (...args) =>
-      (errorQueue[sequence++] = args) && w[rawError] && w[rawError](...args);
-  }
-  if(!w[proxyedRejection] || w[proxyedRejection] !== w[rejection]) {
-    w[rawRejection] = w[rejection]
-    w[proxyedRejection] = w[rejection] = (e: PromiseRejectionEvent) =>
-      (rejectionQueue[sequence++] = e) && w[rawRejection] && w[rawRejection](e)
-  }
+  handlerQueue.forEach(function ([handler, rawHandler, proxyedHandler]) {
+    if(!w[proxyedHandler] || w[proxyedHandler] !== w[handler]) {
+      w[rawHandler] = w[handler]
+      w[proxyedHandler] = w[handler] = function () {
+        queue.push({w: handler, a: arguments})
+        w[rawHandler] && w[rawHandler].apply(w, arguments);
+      }
+    }
+  })
 }
 
 function restoreWindowFns() {
-  w[proxyedError] === w[error] && (w[error] = w[rawError])
-  w[proxyedRejection] === w[rejection] && (w[rejection] = w[rawRejection]);
-  [rawError, proxyedError, rawRejection, proxyedRejection].forEach(name => delete w[name])
+  handlerQueue.forEach(function ([handler, rawHandler, proxyedHandler]) {
+    w[proxyedHandler] === w[handler] && (w[handler] = w[rawHandler])
+    delete w[rawHandler]
+    delete w[proxyedHandler]
+  });
 }
 
 function replayFns(Sentry: Sentry) {
-  for(let i = 0; i < sequence; i++) {
-    // ignore error when replaying, make sure all error are replayed
+  while(queue.length) {
+    // ignore errors when replaying, make sure all errors are replayed
     try {
-      if(errorQueue[i]) {
-        w[error] && w[error](...errorQueue[i])
-      } else if(rejectionQueue[i]) {
-        w[rejection] && w[rejection](rejectionQueue[i])
-      } else if(sentryQueue[i]) {
-        sentryQueue[i](Sentry)
-      }
+      const { w: windowHandler, s: sentryHandler, a: args } = queue.shift()
+      windowHandler && w[windowHandler] && w[windowHandler].apply(w, args)
+      sentryHandler && Sentry[sentryHandler] && Sentry[sentryHandler].apply(Sentry, args)
     } catch {}
   }
-  sequence = sentryQueue.length = errorQueue.length = rejectionQueue.length = 0
 }
 
-function createSentryProxy(name: string) {
-  return (...args) => sentryQueue[sequence++] = t => t[name](...args)
+function createSentryProxy(fnName: string) {
+  return function () {
+    queue.push({s: fnName, a: arguments})
+  }
 }
 
 proxyWindowFns()

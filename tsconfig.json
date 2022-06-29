@@ -3,7 +3,7 @@
     "module": "ESNext",
     "allowSyntheticDefaultImports": true,
     "outDir": "./dist",
-    "target": "es6",
+    "target": "es5",
     "sourceMap": true,
     "moduleResolution": "node",
     "declaration": true,
