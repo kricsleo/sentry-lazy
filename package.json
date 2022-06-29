@@ -1,6 +1,6 @@
 {
   "name": "sentry-lazy",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "A tool for lazy load Sentry",
   "main": "index.js",
   "module": "dist/sentry-lazy.esm-bundler.js",
