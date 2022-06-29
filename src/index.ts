@@ -68,7 +68,7 @@ function proxyWindowFns() {
       w[proxyedHandler] = w[handler] = function () {
         // if no proxy handler, don't push queue
         w[proxyedHandler] && queue.push({w: handler, a: arguments})
-        w[rawHandler] && w[rawHandler].apply(w, arguments);
+        return w[rawHandler] ? w[rawHandler].apply(w, arguments) : true;
       }
     }
   })
