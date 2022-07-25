@@ -20,6 +20,12 @@ It's better to use this tool as a script at the begining of your page, so that a
 It will expose a global variable named `sentryLazy`, then **your shall load Sentry yourself**, when Sentry is fullyed loaded, call `window.sentryLazy.init(Sentry, initOptions)` to init your Sentry, that's all, it will replay all errors happened before.
 
 ```typescript
+// For example:
+// `npm install @sentry/browser`
+//
+// import('@sentry/browser').then(Sentry => {
+//   ...
+// })
 yourCustomSentryAsyncLoader().then(Sentry => {
   // sentryLazy is exposed to window by the script
   window.sentryLazy.init(Sentry, {
