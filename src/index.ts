@@ -3,12 +3,6 @@ import type { BrowserOptions } from '@sentry/browser'
 
 type Sentry = typeof SentryBrowser
 
-type LazyFns = typeof proxyedSentryFns[number]
-
-export type SentryLazy = Pick<Sentry, LazyFns> & Partial<Omit<Sentry, LazyFns | 'init'>> & {
-  init: (Sentry: Sentry, options: BrowserOptions) => void
-}
-
 interface QueueItem {
   /** handler name in window */
   w?: string
@@ -20,7 +14,7 @@ interface QueueItem {
 
 // use variables and short names to save bytes after compiled
 const w = window
-const namespace = 'sentryLazy'
+const namespace = 'SentryLazy'
 const error = 'onerror'
 const rawError = '_re'
 const proxyedError = '_pe'
@@ -35,29 +29,18 @@ const handlerQueue = [
 ] as const
 
 /** proxy these functions on Sentry */
-const proxyedSentryFns = [
-  'addBreadcrumb',
-  'captureException',
-  'captureEvent',
-  'captureMessage',
-  'configureScope',
-  'withScope',
-  'setContext',
-  'setExtra',
-  'setTag',
-  'setUser',
-] as const
+const proxyedSentryFns = 'addBreadcrumb captureException captureEvent captureMessage configureScope withScope setContext setExtra setTag setUser'.split(' ')
 
-const sentryLazy: SentryLazy = proxyedSentryFns.reduce(function (all, cur) {
+const sentryLazy = proxyedSentryFns.reduce(function (all, cur) {
   all[cur] = createSentryProxy(cur)
   return all
-}, { init } as SentryLazy)
+}, { init, loadScript })
 
 function init(Sentry: Sentry, options: BrowserOptions) {
-  Sentry.init(options)
   restoreWindowFns()
-  replayFns(Sentry)
   w[namespace] = Sentry
+  Sentry.init(options)
+  replayFns(Sentry)
 }
 
 function proxyWindowFns() {
@@ -103,6 +86,17 @@ function createSentryProxy(fnName: string) {
   return function (): any {
     queue.push({s: fnName, a: arguments})
   }
+}
+
+function loadScript(src: string, cb: (success: boolean) => void) {
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.crossOrigin = 'anonymous'
+  script.async = true;
+  script.onload = () => cb(true)
+  script.onerror = () => cb(false)
+  script.src = src
+  document.head.appendChild(script);
 }
 
 proxyWindowFns()
