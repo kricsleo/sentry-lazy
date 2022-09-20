@@ -15,7 +15,7 @@
     "src"
   ],
   "scripts": {
-    "build": "NODE_ENV=production rollup -c && tsc --emitDeclarationOnly",
+    "build": "NODE_ENV=production rollup -c",
     "dev": "NODE_ENV=develop rollup -c"
   },
   "repository": {
