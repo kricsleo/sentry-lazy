@@ -42,4 +42,4 @@ It will also expose a global variable named `SentryLazy`, when Sentry is loaded,
 
 You call also call part of Sentry functions on `SentryLazy` before Sentry is loaded, because it proxied some of Sentry functions for convenience. It will also cache those calls and replay them after `SentryLazy.init()` is called.
 
-Which functions are available on `SentryLazy`? See [proxyedSentryFns](./src/index.ts) for detail.
+Which functions are available on `SentryLazy`? See [sentryFns](./src/index.ts) for detail.
